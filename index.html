@@ -75,22 +75,22 @@
             const loadDefaultData = async () => {
                 try {
                     setLoadingDefault(true);
-                    // Option 1: Try loading from same directory
-                    let response = await fetch('chat.json');
                     
-                    // Option 2: If not found, try external URL
-                    if (!response.ok) {
-                        // Replace this URL with your Dropbox/Google Drive/etc link
-                        const externalUrl = 'https://www.dropbox.com/scl/fi/rhbay9c3mrkxe211p9d88/chat.json?rlkey=4lzi3416ld26ex2s5oiiw84yv&dl=1';
-                        response = await fetch(externalUrl);
-                    }
+                    // Try external URL directly (Dropbox with dl=1 should work)
+                    const externalUrl = 'https://www.dropbox.com/scl/fi/rhbay9c3mrkxe211p9d88/chat.json?rlkey=4lzi3416ld26ex2s5oiiw84yv&dl=1';
+                    
+                    const response = await fetch(externalUrl);
                     
                     if (response.ok) {
                         const text = await response.text();
+                        console.log('Successfully loaded default JSON, size:', text.length, 'bytes');
                         await processData(text);
+                        console.log('Processed users:', userData.length);
+                    } else {
+                        console.log('Failed to load default JSON, status:', response.status);
                     }
                 } catch (error) {
-                    console.log('No default chat file found, waiting for upload');
+                    console.log('Error loading default chat:', error.message);
                 } finally {
                     setLoadingDefault(false);
                 }
