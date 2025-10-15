@@ -76,10 +76,11 @@
                 try {
                     setLoadingDefault(true);
                     
-                    // Try external URL directly (Dropbox with dl=1 should work)
-                    const externalUrl = 'https://www.dropbox.com/scl/fi/rhbay9c3mrkxe211p9d88/chat.json?rlkey=4lzi3416ld26ex2s5oiiw84yv&dl=1';
+                    // Use CORS proxy to fetch Dropbox file
+                    const dropboxUrl = 'https://www.dropbox.com/scl/fi/rhbay9c3mrkxe211p9d88/chat.json?rlkey=4lzi3416ld26ex2s5oiiw84yv&dl=1';
+                    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(dropboxUrl);
                     
-                    const response = await fetch(externalUrl);
+                    const response = await fetch(proxyUrl);
                     
                     if (response.ok) {
                         const text = await response.text();
@@ -607,8 +608,18 @@
                         {userData.length === 0 && !processing && (
                             <div className="text-center text-gray-300 py-20">
                                 <MessageSquare size={64} className="mx-auto mb-6 text-blue-400 opacity-50" />
-                                <p className="text-2xl mb-3">Upload your Telegram chat to begin</p>
-                                <p className="text-gray-400">Desktop: Chat menu → Export chat history → JSON format</p>
+                                {loadingDefault ? (
+                                    <>
+                                        <p className="text-2xl mb-3">Loading default chat data...</p>
+                                        <p className="text-gray-400">Please wait</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="text-2xl mb-3">Upload your Telegram chat to begin</p>
+                                        <p className="text-gray-400">Desktop: Chat menu → Export chat history → JSON format</p>
+                                        <p className="text-sm text-red-400 mt-4">Check browser console (F12) for loading errors</p>
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>
