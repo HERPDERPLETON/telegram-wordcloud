@@ -13,6 +13,41 @@
             margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
         }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            25% { transform: translateY(-20px) rotate(5deg); }
+            50% { transform: translateY(-10px) rotate(-5deg); }
+            75% { transform: translateY(-15px) rotate(3deg); }
+        }
+
+        @keyframes swirl {
+            0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0.8; }
+            25% { transform: translate(30px, -30px) scale(1.2) rotate(90deg); opacity: 1; }
+            50% { transform: translate(-20px, -50px) scale(0.8) rotate(180deg); opacity: 0.6; }
+            75% { transform: translate(40px, -40px) scale(1.1) rotate(270deg); opacity: 0.9; }
+            100% { transform: translate(0, 0) scale(1) rotate(360deg); opacity: 0.8; }
+        }
+
+        @keyframes gather {
+            0% {
+                transform: translate(var(--tx), var(--ty)) scale(0.5) rotate(0deg);
+                opacity: 0;
+            }
+            50% {
+                transform: translate(calc(var(--tx) * 0.5), calc(var(--ty) * 0.5)) scale(1.2) rotate(180deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(0, 0) scale(1) rotate(360deg);
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
     </style>
 </head>
 <body>
@@ -59,6 +94,60 @@
             </svg>
         );
 
+        const WordOceanLoader = () => {
+            const sampleWords = [
+                'hello', 'world', 'chat', 'message', 'friend', 'love', 'awesome', 'great',
+                'talk', 'speak', 'think', 'believe', 'amazing', 'wonderful', 'fantastic',
+                'yeah', 'cool', 'nice', 'sweet', 'fun', 'happy', 'joy', 'smile', 'laugh',
+                'today', 'tomorrow', 'night', 'morning', 'evening', 'weekend', 'party',
+                'food', 'coffee', 'music', 'movie', 'game', 'play', 'work', 'life'
+            ];
+
+            return (
+                <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center z-50">
+                    <div className="relative w-full h-full max-w-4xl max-h-96 flex items-center justify-center">
+                        {/* Swirling words in the background */}
+                        <div className="absolute inset-0 overflow-hidden">
+                            {sampleWords.map((word, idx) => {
+                                const randomX = (Math.random() - 0.5) * 800;
+                                const randomY = (Math.random() - 0.5) * 400;
+                                const randomDelay = Math.random() * 2;
+                                const randomDuration = 2 + Math.random() * 2;
+                                const hue = (idx * 137.5) % 360;
+
+                                return (
+                                    <div
+                                        key={idx}
+                                        className="absolute left-1/2 top-1/2 text-2xl font-bold"
+                                        style={{
+                                            color: `hsl(${hue}, 70%, 60%)`,
+                                            animation: `swirl ${randomDuration}s ease-in-out ${randomDelay}s infinite`,
+                                            animationDelay: `${randomDelay}s`,
+                                        }}
+                                    >
+                                        {word}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Center text */}
+                        <div className="relative z-10 text-center">
+                            <div
+                                className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+                                style={{ animation: 'pulse 2s ease-in-out infinite' }}
+                            >
+                                Sorting Words from the Ocean...
+                            </div>
+                            <div className="text-xl text-gray-300">
+                                Analyzing your conversations
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const TelegramWordCloud = () => {
             const [userData, setUserData] = useState([]);
             const [selectedUser, setSelectedUser] = useState(null);
@@ -74,7 +163,9 @@
                 'www', 'http', 'https', 'com', 'org', 'net', 'io', 'co', 'uk', 'edu', 'gov',
                 'instagram', 'youtube', 'twitter', 'facebook', 'tiktok', 'reddit', 'linkedin',
                 'gmail', 'yahoo', 'outlook', 'app', 'html', 'htm', 'php', 'asp',
-                'utm', 'campaign', 'medium', 'source', 'content'
+                'utm', 'campaign', 'medium', 'source', 'content', 'share', 'android',
+                'feature', 'photo', 'from', 'careers', 'team', 'cinematographer', 'director',
+                'photography', 'smid', 'nytcore'
             ]);
 
             const isValidWord = (word) => {
@@ -238,8 +329,14 @@
                 if (/^@\w+/.test(trimmed)) return true;
                 // Exclude "posted a photo" messages
                 if (/posted a photo/i.test(trimmed)) return true;
+                // Exclude photo-related messages
+                if (/photo from/i.test(trimmed)) return true;
                 // Exclude messages that are primarily UTM parameters or URL fragments
                 if (/utm_\w+/.test(trimmed)) return true;
+                // Exclude share dialog fragments
+                if (/android share|feature share/i.test(trimmed)) return true;
+                // Exclude messages with video/link IDs (random alphanumeric strings)
+                if (/\b[a-z0-9]{10,}\b/i.test(trimmed) && trimmed.length < 50) return true;
                 return false;
             };
 
@@ -272,6 +369,12 @@
                 if (/utm_|fbclid|gclid|campaign|socialmarketing/.test(phrase)) return false;
                 // Filter out phrases that are mostly underscores (URL fragments)
                 if ((phrase.match(/_/g) || []).length > 2) return false;
+                // Filter out photo/share-related phrases
+                if (/photo from|android share|feature share/i.test(phrase)) return false;
+                // Filter out phrases with job titles or metadata
+                if (/cinematographer|director|careers|photography.*team/i.test(phrase)) return false;
+                // Filter out phrases with video IDs or random alphanumeric codes
+                if (/\b[a-z0-9]{8,}\b/i.test(phrase)) return false;
                 return true;
             };
 
@@ -503,8 +606,10 @@
             const currentUser = selectedUser !== null ? userData[selectedUser] : null;
 
             return (
-                <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 text-white p-8">
-                    <div className="max-w-7xl mx-auto">
+                <>
+                    {processing && <WordOceanLoader />}
+                    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 text-white p-8">
+                        <div className="max-w-7xl mx-auto">
                         <div className="text-center mb-12">
                             <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                                 Telegram Word Cloud Generator
@@ -773,6 +878,7 @@
                         )}
                     </div>
                 </div>
+                </>
             );
         };
 
