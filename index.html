@@ -65,36 +65,6 @@
             const [processing, setProcessing] = useState(false);
             const [searchTerm, setSearchTerm] = useState('');
             const [searchResult, setSearchResult] = useState(null);
-            const [loadingDefault, setLoadingDefault] = useState(true);
-
-            // Load default JSON on mount
-            React.useEffect(() => {
-                loadDefaultData();
-            }, []);
-
-            const loadDefaultData = async () => {
-                try {
-                    setLoadingDefault(true);
-                    // Option 1: Try loading from same directory
-                    let response = await fetch('chat.json');
-                    
-                    // Option 2: If not found, try external URL
-                    if (!response.ok) {
-                        // Replace this URL with your Dropbox/Google Drive/etc link
-                        const externalUrl = 'https://www.dropbox.com/s/YOUR_FILE_ID/chat.json?dl=1';
-                        response = await fetch(externalUrl);
-                    }
-                    
-                    if (response.ok) {
-                        const text = await response.text();
-                        await processData(text);
-                    }
-                } catch (error) {
-                    console.log('No default chat file found, waiting for upload');
-                } finally {
-                    setLoadingDefault(false);
-                }
-            };
 
             const stopWords = new Set([
                 'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at', 'this', 'but', 'his', 'by', 'from', 'they', 'we', 'say', 'her', 'she', 'or', 'an', 'will', 'my', 'one', 'all', 'would', 'there', 'their', 'what', 'so', 'up', 'out', 'if', 'about', 'who', 'get', 'which', 'go', 'me', 'when', 'make', 'can', 'like', 'time', 'no', 'just', 'him', 'know', 'take', 'people', 'into', 'year', 'your', 'good', 'some', 'could', 'them', 'see', 'other', 'than', 'then', 'now', 'look', 'only', 'come', 'its', 'over', 'think', 'also', 'back', 'after', 'use', 'two', 'how', 'our', 'work', 'first', 'well', 'way', 'even', 'new', 'want', 'because', 'any', 'these', 'give', 'day', 'most', 'us', 'is', 'was', 'are', 'been', 'has', 'had', 'were', 'said', 'did', 'having', 'may', 'am', 'yeah', 'oh', 'lol', 'haha', 'lmao'
@@ -166,6 +136,65 @@
                 insights.push(`Most discussed: ${topWords.slice(0, 3).join(', ')}`);
                 
                 return insights;
+            };
+
+            const detectHyperbole = (userObj) => {
+                const hyperbolicPhrases = [];
+                const wordCounts = userObj.wordCounts;
+                
+                // Extreme quantifiers
+                const extremeWords = {
+                    'literally': wordCounts.get('literally') || 0,
+                    'absolutely': wordCounts.get('absolutely') || 0,
+                    'completely': wordCounts.get('completely') || 0,
+                    'totally': wordCounts.get('totally') || 0,
+                    'never': wordCounts.get('never') || 0,
+                    'always': wordCounts.get('always') || 0,
+                    'everything': wordCounts.get('everything') || 0,
+                    'nothing': wordCounts.get('nothing') || 0,
+                    'everyone': wordCounts.get('everyone') || 0,
+                    'nobody': wordCounts.get('nobody') || 0,
+                    'forever': wordCounts.get('forever') || 0,
+                    'impossible': wordCounts.get('impossible') || 0,
+                    'insane': wordCounts.get('insane') || 0,
+                    'crazy': wordCounts.get('crazy') || 0,
+                    'dying': wordCounts.get('dying') || 0,
+                    'dead': wordCounts.get('dead') || 0,
+                    'million': wordCounts.get('million') || 0,
+                    'billion': wordCounts.get('billion') || 0,
+                    'infinite': wordCounts.get('infinite') || 0,
+                    'worst': wordCounts.get('worst') || 0,
+                    'best': wordCounts.get('best') || 0
+                };
+                
+                // Find all-caps messages (likely shouting/emphasis)
+                let allCapsCount = 0;
+                userObj.messages.forEach(msg => {
+                    if (msg.length > 3 && msg === msg.toUpperCase() && /[A-Z]/.test(msg)) {
+                        allCapsCount++;
+                    }
+                });
+                
+                // Count multiple punctuation (!!!, ???, etc)
+                let excessivePunctuation = 0;
+                userObj.messages.forEach(msg => {
+                    if (/[!?]{2,}/.test(msg)) {
+                        excessivePunctuation++;
+                    }
+                });
+                
+                // Sort by frequency and filter out zeros
+                const topHyperbolic = Object.entries(extremeWords)
+                    .filter(([, count]) => count > 0)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 10);
+                
+                return {
+                    words: topHyperbolic,
+                    allCapsCount,
+                    excessivePunctuation,
+                    totalHyperbolic: topHyperbolic.reduce((sum, [, count]) => sum + count, 0)
+                };
             };
 
             const extractSentences = (messages) => {
@@ -297,6 +326,7 @@
                         const phrases = extractPhrases(userObj.messages);
                         const sentences = extractSentences(userObj.messages);
                         const insights = generateInsights(userObj);
+                        const hyperbole = detectHyperbole(userObj);
                         
                         return {
                             name: userName,
@@ -306,6 +336,7 @@
                             phrases: phrases,
                             sentences: sentences,
                             insights: insights,
+                            hyperbole: hyperbole,
                             editedCount: userObj.editedCount,
                             messageCount: userObj.messages.length,
                             rawMessages: userObj.rawMessages,
@@ -395,14 +426,14 @@
                             <label className="flex items-center justify-center gap-4 p-12 border-2 border-dashed border-blue-500/50 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-500/5 transition-all">
                                 <Upload size={32} className="text-blue-400" />
                                 <span className="text-xl">
-                                    {processing ? 'Processing your chat...' : loadingDefault ? 'Loading default chat...' : 'Upload Different Chat (JSON)'}
+                                    {processing ? 'Processing your chat...' : userData.length > 0 ? 'Upload Different Chat (JSON)' : 'Upload Telegram Chat Export (JSON)'}
                                 </span>
                                 <input
                                     type="file"
                                     accept=".json"
                                     onChange={processFile}
                                     className="hidden"
-                                    disabled={processing || loadingDefault}
+                                    disabled={processing}
                                 />
                             </label>
                             {userData.length > 0 && (
