@@ -73,7 +73,8 @@
             const urlWords = new Set([
                 'www', 'http', 'https', 'com', 'org', 'net', 'io', 'co', 'uk', 'edu', 'gov',
                 'instagram', 'youtube', 'twitter', 'facebook', 'tiktok', 'reddit', 'linkedin',
-                'gmail', 'yahoo', 'outlook', 'app', 'html', 'htm', 'php', 'asp'
+                'gmail', 'yahoo', 'outlook', 'app', 'html', 'htm', 'php', 'asp',
+                'utm', 'campaign', 'medium', 'source', 'content'
             ]);
 
             const isValidWord = (word) => {
@@ -85,6 +86,9 @@
                 if (/\.(com|org|net|io|co|edu|gov|uk)/.test(word)) return false;
                 if (/^https?/.test(word)) return false;
                 if (/^\d+$/.test(word)) return false;
+                // Filter out UTM parameters and URL query strings
+                if (/^utm_/.test(word)) return false;
+                if (word.includes('_') && /utm|campaign|fbclid|gclid/.test(word)) return false;
                 return true;
             };
 
@@ -234,6 +238,8 @@
                 if (/^@\w+/.test(trimmed)) return true;
                 // Exclude "posted a photo" messages
                 if (/posted a photo/i.test(trimmed)) return true;
+                // Exclude messages that are primarily UTM parameters or URL fragments
+                if (/utm_\w+/.test(trimmed)) return true;
                 return false;
             };
 
@@ -522,7 +528,7 @@
                                         <MessageSquare />
                                         Select User ({userData.length} users)
                                     </h2>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                                         {userData.map((user, idx) => (
                                             <button
                                                 key={idx}
