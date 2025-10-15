@@ -267,6 +267,14 @@
                     .slice(0, 15);
             };
 
+            const isValidPhrase = (phrase) => {
+                // Filter out phrases containing UTM parameters or tracking codes
+                if (/utm_|fbclid|gclid|campaign|socialmarketing/.test(phrase)) return false;
+                // Filter out phrases that are mostly underscores (URL fragments)
+                if ((phrase.match(/_/g) || []).length > 2) return false;
+                return true;
+            };
+
             const extractPhrases = (messages) => {
                 const phrases = {};
 
@@ -279,14 +287,18 @@
                     for (let i = 0; i < words.length - 1; i++) {
                         if (isValidWord(words[i]) && isValidWord(words[i + 1])) {
                             const phrase = `${words[i]} ${words[i + 1]}`;
-                            phrases[phrase] = (phrases[phrase] || 0) + 1;
+                            if (isValidPhrase(phrase)) {
+                                phrases[phrase] = (phrases[phrase] || 0) + 1;
+                            }
                         }
                     }
 
                     for (let i = 0; i < words.length - 2; i++) {
                         if (isValidWord(words[i]) && isValidWord(words[i + 1]) && isValidWord(words[i + 2])) {
                             const phrase = `${words[i]} ${words[i + 1]} ${words[i + 2]}`;
-                            phrases[phrase] = (phrases[phrase] || 0) + 1;
+                            if (isValidPhrase(phrase)) {
+                                phrases[phrase] = (phrases[phrase] || 0) + 1;
+                            }
                         }
                     }
                 });
