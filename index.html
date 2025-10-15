@@ -174,6 +174,7 @@
 
                 let allCapsCount = 0;
                 userObj.messages.forEach(msg => {
+                    if (shouldExcludeMessage(msg)) return;
                     if (msg.length > 3 && msg === msg.toUpperCase() && /[A-Z]/.test(msg)) {
                         allCapsCount++;
                     }
@@ -181,6 +182,7 @@
 
                 let excessivePunctuation = 0;
                 userObj.messages.forEach(msg => {
+                    if (shouldExcludeMessage(msg)) return;
                     if (/[!?]{2,}/.test(msg)) {
                         excessivePunctuation++;
                     }
@@ -226,22 +228,33 @@
                 };
             };
 
+            const shouldExcludeMessage = (text) => {
+                const trimmed = text.trim();
+                // Exclude mentions (messages starting with @username)
+                if (/^@\w+/.test(trimmed)) return true;
+                // Exclude "posted a photo" messages
+                if (/posted a photo/i.test(trimmed)) return true;
+                return false;
+            };
+
             const extractSentences = (messages) => {
                 const sentences = {};
-                
+
                 messages.forEach(text => {
+                    if (shouldExcludeMessage(text)) return;
+
                     const sents = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 10);
-                    
+
                     sents.forEach(sent => {
                         const normalized = normalizeText(sent);
                         const words = normalized.split(/\s+/);
-                        
+
                         if (words.length >= 4 && words.length <= 12) {
                             sentences[normalized] = (sentences[normalized] || 0) + 1;
                         }
                     });
                 });
-                
+
                 return Object.entries(sentences)
                     .filter(([, count]) => count >= 2)
                     .sort((a, b) => b[1] - a[1])
@@ -250,18 +263,20 @@
 
             const extractPhrases = (messages) => {
                 const phrases = {};
-                
+
                 messages.forEach(text => {
+                    if (shouldExcludeMessage(text)) return;
+
                     const normalized = normalizeText(text);
                     const words = normalized.split(/\s+/).filter(w => w.length > 2);
-                    
+
                     for (let i = 0; i < words.length - 1; i++) {
                         if (isValidWord(words[i]) && isValidWord(words[i + 1])) {
                             const phrase = `${words[i]} ${words[i + 1]}`;
                             phrases[phrase] = (phrases[phrase] || 0) + 1;
                         }
                     }
-                    
+
                     for (let i = 0; i < words.length - 2; i++) {
                         if (isValidWord(words[i]) && isValidWord(words[i + 1]) && isValidWord(words[i + 2])) {
                             const phrase = `${words[i]} ${words[i + 1]} ${words[i + 2]}`;
@@ -269,7 +284,7 @@
                         }
                     }
                 });
-                
+
                 return Object.entries(phrases)
                     .filter(([, count]) => count >= 3)
                     .sort((a, b) => b[1] - a[1])
@@ -304,7 +319,7 @@
                     data.messages.forEach(msg => {
                         if (msg.type === 'message' && msg.text && msg.from) {
                             const userName = String(msg.from);
-                            
+
                             if (!userMap.has(userName)) {
                                 userMap.set(userName, {
                                     wordCounts: new Map(),
@@ -313,13 +328,13 @@
                                     editedCount: 0
                                 });
                             }
-                            
+
                             const userObj = userMap.get(userName);
-                            
+
                             if (msg.edited) {
                                 userObj.editedCount++;
                             }
-                            
+
                             let textContent = '';
                             if (typeof msg.text === 'string') {
                                 textContent = msg.text;
@@ -330,14 +345,14 @@
                                     return '';
                                 }).join(' ');
                             }
-                            
-                            if (textContent.trim()) {
+
+                            if (textContent.trim() && !shouldExcludeMessage(textContent)) {
                                 userObj.messages.push(textContent);
                                 userObj.rawMessages.push(textContent.toLowerCase());
-                                
+
                                 const normalized = normalizeText(textContent);
                                 const words = normalized.split(/\s+/).filter(w => isValidWord(w));
-                                
+
                                 words.forEach(word => {
                                     userObj.wordCounts.set(word, (userObj.wordCounts.get(word) || 0) + 1);
                                 });
@@ -547,7 +562,7 @@
                                                 <Sparkles />
                                                 Insights for {currentUser.name}
                                             </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                                 {currentUser.insights.map((insight, idx) => (
                                                     <div key={idx} className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl p-4 border border-purple-500/20">
                                                         <p className="text-gray-200">• {insight}</p>
@@ -572,7 +587,7 @@
                                                         <p className="text-xl font-bold text-orange-300 mb-4">
                                                             Dramatic Language Score: {currentUser.hyperbole.totalHyperbolic} instances
                                                         </p>
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                                             {currentUser.hyperbole.words.map(([word, count], idx) => (
                                                                 <div key={idx} className="flex items-center justify-between bg-gray-700/50 rounded-lg p-3">
                                                                     <span className="text-gray-200 capitalize font-semibold">"{word}"</span>
@@ -581,22 +596,24 @@
                                                             ))}
                                                         </div>
                                                     </div>
-                                                    
-                                                    {currentUser.hyperbole.allCapsCount > 0 && (
-                                                        <div className="bg-gradient-to-r from-red-900/30 to-pink-900/30 rounded-xl p-4 border border-red-500/20">
-                                                            <p className="text-gray-200">
-                                                                📢 Sent <span className="font-bold text-red-300">{currentUser.hyperbole.allCapsCount}</span> ALL CAPS messages
-                                                            </p>
-                                                        </div>
-                                                    )}
-                                                    
-                                                    {currentUser.hyperbole.excessivePunctuation > 0 && (
-                                                        <div className="bg-gradient-to-r from-yellow-900/30 to-orange-900/30 rounded-xl p-4 border border-yellow-500/20">
-                                                            <p className="text-gray-200">
-                                                                ‼️ Used excessive punctuation in <span className="font-bold text-yellow-300">{currentUser.hyperbole.excessivePunctuation}</span> messages (!!! or ???)
-                                                            </p>
-                                                        </div>
-                                                    )}
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        {currentUser.hyperbole.allCapsCount > 0 && (
+                                                            <div className="bg-gradient-to-r from-red-900/30 to-pink-900/30 rounded-xl p-4 border border-red-500/20">
+                                                                <p className="text-gray-200">
+                                                                    📢 Sent <span className="font-bold text-red-300">{currentUser.hyperbole.allCapsCount}</span> ALL CAPS messages
+                                                                </p>
+                                                            </div>
+                                                        )}
+
+                                                        {currentUser.hyperbole.excessivePunctuation > 0 && (
+                                                            <div className="bg-gradient-to-r from-yellow-900/30 to-orange-900/30 rounded-xl p-4 border border-yellow-500/20">
+                                                                <p className="text-gray-200">
+                                                                    ‼️ Used excessive punctuation in <span className="font-bold text-yellow-300">{currentUser.hyperbole.excessivePunctuation}</span> messages (!!! or ???)
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
@@ -634,7 +651,7 @@
                                         {currentUser.sentences.length > 0 && (
                                             <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-gray-700 shadow-2xl">
                                                 <h3 className="text-2xl font-bold mb-6 text-purple-300">Most Repeated Sentences</h3>
-                                                <div className="space-y-3">
+                                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                                                     {currentUser.sentences.map(([sentence, count], idx) => (
                                                         <div key={idx} className="flex items-start gap-4 bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-4 border border-purple-500/20">
                                                             <div className="text-2xl font-bold text-purple-400 min-w-[2rem]">
