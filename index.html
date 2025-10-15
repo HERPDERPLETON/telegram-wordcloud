@@ -21,36 +21,36 @@
     <script type="text/babel">
         const { useState } = React;
 
-        const Upload = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        const Upload = ({ size = 24 }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="17 8 12 3 7 8"></polyline>
                 <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
         );
 
-        const MessageSquare = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        const MessageSquare = ({ size = 24 }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             </svg>
         );
 
-        const Search = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        const Search = ({ size = 24 }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
                 <path d="m21 21-4.35-4.35"></path>
             </svg>
         );
 
-        const Edit = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        const Edit = ({ size = 24 }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
             </svg>
         );
 
-        const Sparkles = ({ size = 24, className = "" }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        const Sparkles = ({ size = 24 }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
                 <path d="M5 3v4"></path>
                 <path d="M19 17v4"></path>
@@ -99,7 +99,8 @@
                 const insights = [];
                 const totalWords = userObj.wordCounts.size;
                 const totalMessages = userObj.messages.length;
-                const avgWordsPerMsg = totalMessages > 0 ? (Array.from(userObj.wordCounts.values()).reduce((a, b) => a + b, 0) / totalMessages).toFixed(1) : 0;
+                const totalWordCount = Array.from(userObj.wordCounts.values()).reduce((a, b) => a + b, 0);
+                const avgWordsPerMsg = totalMessages > 0 ? (totalWordCount / totalMessages).toFixed(1) : 0;
                 
                 const topWords = Array.from(userObj.wordCounts.entries())
                     .sort((a, b) => b[1] - a[1])
@@ -139,10 +140,8 @@
             };
 
             const detectHyperbole = (userObj) => {
-                const hyperbolicPhrases = [];
                 const wordCounts = userObj.wordCounts;
                 
-                // Extreme quantifiers
                 const extremeWords = {
                     'literally': wordCounts.get('literally') || 0,
                     'absolutely': wordCounts.get('absolutely') || 0,
@@ -167,7 +166,6 @@
                     'best': wordCounts.get('best') || 0
                 };
                 
-                // Find all-caps messages (likely shouting/emphasis)
                 let allCapsCount = 0;
                 userObj.messages.forEach(msg => {
                     if (msg.length > 3 && msg === msg.toUpperCase() && /[A-Z]/.test(msg)) {
@@ -175,7 +173,6 @@
                     }
                 });
                 
-                // Count multiple punctuation (!!!, ???, etc)
                 let excessivePunctuation = 0;
                 userObj.messages.forEach(msg => {
                     if (/[!?]{2,}/.test(msg)) {
@@ -183,7 +180,6 @@
                     }
                 });
                 
-                // Sort by frequency and filter out zeros
                 const topHyperbolic = Object.entries(extremeWords)
                     .filter(([, count]) => count > 0)
                     .sort((a, b) => b[1] - a[1])
@@ -255,18 +251,6 @@
                 
                 try {
                     const text = await file.text();
-                    await processData(text);
-                } catch (error) {
-                    console.error('Processing error:', error);
-                    alert('Error processing file: ' + error.message);
-                }
-                
-                setProcessing(false);
-            };
-
-            const processData = async (text) => {
-            const processData = async (text) => {
-                try {
                     const data = JSON.parse(text);
                     
                     if (!data.messages || !Array.isArray(data.messages)) {
@@ -351,9 +335,10 @@
                     
                 } catch (error) {
                     console.error('Processing error:', error);
-                    throw error;
+                    alert('Error processing file: ' + error.message);
                 }
-            };
+                
+                setProcessing(false);
             };
 
             const handleSearch = () => {
@@ -424,7 +409,7 @@
                         
                         <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-gray-700 shadow-2xl">
                             <label className="flex items-center justify-center gap-4 p-12 border-2 border-dashed border-blue-500/50 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-500/5 transition-all">
-                                <Upload size={32} className="text-blue-400" />
+                                <Upload size={32} />
                                 <span className="text-xl">
                                     {processing ? 'Processing your chat...' : userData.length > 0 ? 'Upload Different Chat (JSON)' : 'Upload Telegram Chat Export (JSON)'}
                                 </span>
@@ -447,7 +432,7 @@
                             <>
                                 <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-gray-700 shadow-2xl">
                                     <h2 className="text-3xl font-bold mb-6 flex items-center gap-3">
-                                        <MessageSquare className="text-blue-400" />
+                                        <MessageSquare />
                                         Select User ({userData.length} users)
                                     </h2>
                                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -487,7 +472,7 @@
                                     <>
                                         <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-gray-700 shadow-2xl">
                                             <h3 className="text-2xl font-bold mb-6 flex items-center gap-3 text-purple-300">
-                                                <Sparkles className="text-purple-400" />
+                                                <Sparkles />
                                                 AI Insights for {currentUser.name}
                                             </h3>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -507,9 +492,46 @@
                                             </div>
                                         </div>
 
+                                        {currentUser.hyperbole.totalHyperbolic > 0 && (
+                                            <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-gray-700 shadow-2xl">
+                                                <h3 className="text-2xl font-bold mb-6 text-orange-300">Hyperbole Detector 🎭</h3>
+                                                <div className="space-y-4">
+                                                    <div className="bg-gradient-to-r from-orange-900/30 to-red-900/30 rounded-xl p-6 border border-orange-500/20">
+                                                        <p className="text-xl font-bold text-orange-300 mb-4">
+                                                            Dramatic Language Score: {currentUser.hyperbole.totalHyperbolic} instances
+                                                        </p>
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                            {currentUser.hyperbole.words.map(([word, count], idx) => (
+                                                                <div key={idx} className="flex items-center justify-between bg-gray-700/50 rounded-lg p-3">
+                                                                    <span className="text-gray-200 capitalize font-semibold">"{word}"</span>
+                                                                    <span className="text-orange-400 font-bold">{count}×</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {currentUser.hyperbole.allCapsCount > 0 && (
+                                                        <div className="bg-gradient-to-r from-red-900/30 to-pink-900/30 rounded-xl p-4 border border-red-500/20">
+                                                            <p className="text-gray-200">
+                                                                📢 Sent <span className="font-bold text-red-300">{currentUser.hyperbole.allCapsCount}</span> ALL CAPS messages
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {currentUser.hyperbole.excessivePunctuation > 0 && (
+                                                        <div className="bg-gradient-to-r from-yellow-900/30 to-orange-900/30 rounded-xl p-4 border border-yellow-500/20">
+                                                            <p className="text-gray-200">
+                                                                ‼️ Used excessive punctuation in <span className="font-bold text-yellow-300">{currentUser.hyperbole.excessivePunctuation}</span> messages (!!! or ???)
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-gray-700 shadow-2xl">
                                             <h3 className="text-2xl font-bold mb-6 flex items-center gap-3 text-blue-300">
-                                                <Search className="text-blue-400" />
+                                                <Search />
                                                 Search Word or Phrase
                                             </h3>
                                             <div className="flex gap-4">
