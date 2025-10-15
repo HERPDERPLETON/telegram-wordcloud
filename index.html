@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Word Cloud Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        const Upload = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+        );
+
+        const MessageSquare = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+        );
+
+        const Search = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+            </svg>
+        );
+
+        const Edit = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+        );
+
+        const Sparkles = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path>
+                <path d="M5 3v4"></path>
+                <path d="M19 17v4"></path>
+                <path d="M3 5h4"></path>
+                <path d="M17 19h4"></path>
+            </svg>
+        );
+
+        const TelegramWordCloud = () => {
+            const [userData, setUserData] = useState([]);
+            const [selectedUser, setSelectedUser] = useState(null);
+            const [processing, setProcessing] = useState(false);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [searchResult, setSearchResult] = useState(null);
+
+            const stopWords = new Set([
+                'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have', 'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you', 'do', 'at', 'this', 'but', 'his', 'by', 'from', 'they', 'we', 'say', 'her', 'she', 'or', 'an', 'will', 'my', 'one', 'all', 'would', 'there', 'their', 'what', 'so', 'up', 'out', 'if', 'about', 'who', 'get', 'which', 'go', 'me', 'when', 'make', 'can', 'like', 'time', 'no', 'just', 'him', 'know', 'take', 'people', 'into', 'year', 'your', 'good', 'some', 'could', 'them', 'see', 'other', 'than', 'then', 'now', 'look', 'only', 'come', 'its', 'over', 'think', 'also', 'back', 'after', 'use', 'two', 'how', 'our', 'work', 'first', 'well', 'way', 'even', 'new', 'want', 'because', 'any', 'these', 'give', 'day', 'most', 'us', 'is', 'was', 'are', 'been', 'has', 'had', 'were', 'said', 'did', 'having', 'may', 'am', 'yeah', 'oh', 'lol', 'haha', 'lmao'
+            ]);
+
+            const urlWords = new Set([
+                'www', 'http', 'https', 'com', 'org', 'net', 'io', 'co', 'uk', 'edu', 'gov',
+                'instagram', 'youtube', 'twitter', 'facebook', 'tiktok', 'reddit', 'linkedin',
+                'gmail', 'yahoo', 'outlook', 'app', 'html', 'htm', 'php', 'asp'
+            ]);
+
+            const isValidWord = (word) => {
+                if (!word || word.length <= 2) return false;
+                if (stopWords.has(word)) return false;
+                if (urlWords.has(word)) return false;
+                if (word.includes('://')) return false;
+                if (word.startsWith('www')) return false;
+                if (/\.(com|org|net|io|co|edu|gov|uk)/.test(word)) return false;
+                if (/^https?/.test(word)) return false;
+                if (/^\d+$/.test(word)) return false;
+                return true;
+            };
+
+            const normalizeText = (text) => {
+                return text.toLowerCase()
+                    .replace(/[^\w\s']/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            };
+
+            const generateInsights = (userObj) => {
+                const insights = [];
+                const totalWords = userObj.wordCounts.size;
+                const totalMessages = userObj.messages.length;
+                const avgWordsPerMsg = totalMessages > 0 ? (Array.from(userObj.wordCounts.values()).reduce((a, b) => a + b, 0) / totalMessages).toFixed(1) : 0;
+                
+                const topWords = Array.from(userObj.wordCounts.entries())
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5)
+                    .map(([word]) => word);
+                
+                if (avgWordsPerMsg > 20) {
+                    insights.push("Tends to write long, detailed messages");
+                } else if (avgWordsPerMsg < 5) {
+                    insights.push("Prefers short, concise messages");
+                } else {
+                    insights.push("Writes moderately-sized messages");
+                }
+                
+                const emotionalWords = ['love', 'hate', 'amazing', 'terrible', 'great', 'awesome', 'horrible', 'fantastic'];
+                const hasEmotionalWords = topWords.some(word => emotionalWords.includes(word));
+                if (hasEmotionalWords) {
+                    insights.push("Expressive and uses emotional language");
+                }
+                
+                const questionWords = ['why', 'what', 'how', 'when', 'where', 'who'];
+                const asksQuestions = Array.from(userObj.wordCounts.keys()).some(word => questionWords.includes(word));
+                if (asksQuestions) {
+                    insights.push("Frequently asks questions");
+                }
+                
+                const diversityRatio = totalWords / totalMessages;
+                if (diversityRatio > 15) {
+                    insights.push("Uses diverse vocabulary");
+                } else if (diversityRatio < 5) {
+                    insights.push("Uses repetitive vocabulary");
+                }
+                
+                insights.push(`Most discussed: ${topWords.slice(0, 3).join(', ')}`);
+                
+                return insights;
+            };
+
+            const extractSentences = (messages) => {
+                const sentences = {};
+                
+                messages.forEach(text => {
+                    const sents = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 10);
+                    
+                    sents.forEach(sent => {
+                        const normalized = normalizeText(sent);
+                        const words = normalized.split(/\s+/);
+                        
+                        if (words.length >= 4 && words.length <= 12) {
+                            sentences[normalized] = (sentences[normalized] || 0) + 1;
+                        }
+                    });
+                });
+                
+                return Object.entries(sentences)
+                    .filter(([, count]) => count >= 2)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 15);
+            };
+
+            const extractPhrases = (messages) => {
+                const phrases = {};
+                
+                messages.forEach(text => {
+                    const normalized = normalizeText(text);
+                    const words = normalized.split(/\s+/).filter(w => w.length > 2);
+                    
+                    for (let i = 0; i < words.length - 1; i++) {
+                        if (isValidWord(words[i]) && isValidWord(words[i + 1])) {
+                            const phrase = `${words[i]} ${words[i + 1]}`;
+                            phrases[phrase] = (phrases[phrase] || 0) + 1;
+                        }
+                    }
+                    
+                    for (let i = 0; i < words.length - 2; i++) {
+                        if (isValidWord(words[i]) && isValidWord(words[i + 1]) && isValidWord(words[i + 2])) {
+                            const phrase = `${words[i]} ${words[i + 1]} ${words[i + 2]}`;
+                            phrases[phrase] = (phrases[phrase] || 0) + 1;
+                        }
+                    }
+                });
+                
+                return Object.entries(phrases)
+                    .filter(([, count]) => count >= 3)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 20);
+            };
+
+            const processFile = async (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                setProcessing(true);
+                
+                try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    
+                    if (!data.messages || !Array.isArray(data.messages)) {
+                        throw new Error('Invalid Telegram export format');
+                    }
+                    
+                    const userMap = new Map();
+                    
+                    data.messages.forEach(msg => {
+                        if (msg.type === 'message' && msg.text && msg.from) {
+                            const userName = String(msg.from);
+                            
+                            if (!userMap.has(userName)) {
+                                userMap.set(userName, {
+                                    wordCounts: new Map(),
+                                    messages: [],
+                                    rawMessages: [],
+                                    editedCount: 0
+                                });
+                            }
+                            
+                            const userObj = userMap.get(userName);
+                            
+                            if (msg.edited) {
+                                userObj.editedCount++;
+                            }
+                            
+                            let textContent = '';
+                            if (typeof msg.text === 'string') {
+                                textContent = msg.text;
+                            } else if (Array.isArray(msg.text)) {
+                                textContent = msg.text.map(t => {
+                                    if (typeof t === 'string') return t;
+                                    if (t && typeof t === 'object' && t.text) return t.text;
+                                    return '';
+                                }).join(' ');
+                            }
+                            
+                            if (textContent.trim()) {
+                                userObj.messages.push(textContent);
+                                userObj.rawMessages.push(textContent.toLowerCase());
+                                
+                                const normalized = normalizeText(textContent);
+                                const words = normalized.split(/\s+/).filter(w => isValidWord(w));
+                                
+                                words.forEach(word => {
+                                    userObj.wordCounts.set(word, (userObj.wordCounts.get(word) || 0) + 1);
+                                });
+                            }
+                        }
+                    });
+                    
+                    const processedUsers = Array.from(userMap.entries()).map(([userName, userObj]) => {
+                        const wordArray = Array.from(userObj.wordCounts.entries());
+                        const totalWords = wordArray.reduce((sum, [, count]) => sum + count, 0);
+                        const topWords = wordArray.sort((a, b) => b[1] - a[1]).slice(0, 100);
+                        const phrases = extractPhrases(userObj.messages);
+                        const sentences = extractSentences(userObj.messages);
+                        const insights = generateInsights(userObj);
+                        
+                        return {
+                            name: userName,
+                            words: topWords,
+                            totalWords: totalWords,
+                            uniqueWords: wordArray.length,
+                            phrases: phrases,
+                            sentences: sentences,
+                            insights: insights,
+                            editedCount: userObj.editedCount,
+                            messageCount: userObj.messages.length,
+                            rawMessages: userObj.rawMessages,
+                            wordCounts: userObj.wordCounts
+                        };
+                    });
+                    
+                    setUserData(processedUsers);
+                    if (processedUsers.length > 0) {
+                        setSelectedUser(0);
+                    }
+                    
+                } catch (error) {
+                    console.error('Processing error:', error);
+                    alert('Error processing file: ' + error.message);
+                }
+                
+                setProcessing(false);
+            };
+
+            const handleSearch = () => {
+                if (!searchTerm || selectedUser === null) return;
+                
+                const user = userData[selectedUser];
+                const searchLower = searchTerm.toLowerCase();
+                
+                let count = 0;
+                user.rawMessages.forEach(msg => {
+                    const occurrences = (msg.match(new RegExp(searchLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+                    count += occurrences;
+                });
+                
+                const wordCount = user.wordCounts.get(normalizeText(searchTerm)) || 0;
+                
+                setSearchResult({
+                    term: searchTerm,
+                    count: Math.max(count, wordCount)
+                });
+            };
+
+            const generateWordCloud = (words) => {
+                if (!words || words.length === 0) return [];
+                
+                const positions = [];
+                const maxFreq = words[0][1];
+                const minFreq = words[words.length - 1][1];
+                const centerX = 50;
+                const centerY = 50;
+                
+                words.forEach(([word, freq], idx) => {
+                    const normalizedSize = minFreq === maxFreq ? 1 : (freq - minFreq) / (maxFreq - minFreq);
+                    const fontSize = 16 + normalizedSize * 44;
+                    const opacity = 0.6 + normalizedSize * 0.4;
+                    const hue = (idx * 137.5) % 360;
+                    
+                    const angle = idx * 0.5;
+                    const radius = Math.sqrt(idx) * 4;
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = centerY + Math.sin(angle) * radius;
+                    
+                    positions.push({
+                        word,
+                        freq,
+                        fontSize,
+                        opacity,
+                        color: `hsl(${hue}, 75%, ${45 + normalizedSize * 15}%)`,
+                        left: `${Math.max(5, Math.min(95, x))}%`,
+                        top: `${Math.max(5, Math.min(95, y))}%`
+                    });
+                });
+                
+                return positions;
+            };
+
+            const currentUser = selectedUser !== null ? userData[selectedUser] : null;
+
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 text-white p-8">
+                    <div className="max-w-7xl mx-auto">
+                        <div className="text-center mb-12">
+                            <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                                Telegram Word Cloud Generator
+                            </h1>
+                            <p className="text-gray-300 text-lg">Visualize your chat patterns beautifully</p>
+                        </div>
+                        
+                        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-gray-700 shadow-2xl">
+                            <label className="flex items-center justify-center gap-4 p-12 border-2 border-dashed border-blue-500/50 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-500/5 transition-all">
+                                <Upload size={32} className="text-blue-400" />
+                                <span className="text-xl">
+                                    {processing ? 'Processing your chat...' : 'Upload Telegram Chat Export (JSON)'}
+                                </span>
+                                <input
+                                    type="file"
+                                    accept=".json"
+                                    onChange={processFile}
+                                    className="hidden"
+                                    disabled={processing}
+                                />
+                            </label>
+                        </div>
+
+                        {userData.length > 0 && (
+                            <>
+                                <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-gray-700 shadow-2xl">
+                                    <h2 className="text-3xl font-bold mb-6 flex items-center gap-3">
+                                        <MessageSquare className="text-blue-400" />
+                                        Select User ({userData.length} users)
+                                    </h2>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                        {userData.map((user, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => {
+                                                    setSelectedUser(idx);
+                                                    setSearchResult(null);
+                                                    setSearchTerm('');
+                                                }}
+                                                className={`p-5 rounded-xl transition-all transform hover:scale-105 ${
+                                                    selectedUser === idx
+                                                        ? 'bg-gradient-to-br from-blue-500 to-purple-500 shadow-lg shadow-blue-500/50'
+                                                        : 'bg-gray-700/50 hover:bg-gray-700'
+                                                }`}
+                                            >
+                                                <div className="font-bold text-lg truncate mb-2" title={user.name}>
+                                                    {user.name}
+                                                </div>
+                                                <div className="text-sm text-gray-300 space-y-1">
+                                                    <div>{user.totalWords.toLocaleString()} words</div>
+                                                    <div className="text-xs text-gray-400">{user.uniqueWords.toLocaleString()} unique</div>
+                                                </div>
+                                                {user.editedCount > 0 && (
+                                                    <div className="text-xs text-yellow-300 flex items-center gap-1 mt-2 justify-center bg-yellow-500/20 rounded-full py-1 px-2">
+                                                        <Edit size={12} />
+                                                        {user.editedCount} edited
+                                                    </div>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {currentUser && (
+                                    <>
+                                        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-gray-700 shadow-2xl">
+                                            <h3 className="text-2xl font-bold mb-6 flex items-center gap-3 text-purple-300">
+                                                <Sparkles className="text-purple-400" />
+                                                AI Insights for {currentUser.name}
+                                            </h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {currentUser.insights.map((insight, idx) => (
+                                                    <div key={idx} className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl p-4 border border-purple-500/20">
+                                                        <p className="text-gray-200">• {insight}</p>
+                                                    </div>
+                                                ))}
+                                                <div className="bg-gradient-to-r from-blue-900/30 to-cyan-900/30 rounded-xl p-4 border border-blue-500/20">
+                                                    <p className="text-gray-200">• Sent {currentUser.messageCount.toLocaleString()} messages</p>
+                                                </div>
+                                                {currentUser.editedCount > 0 && (
+                                                    <div className="bg-gradient-to-r from-yellow-900/30 to-orange-900/30 rounded-xl p-4 border border-yellow-500/20">
+                                                        <p className="text-gray-200">• Edited {currentUser.editedCount} messages ({((currentUser.editedCount / currentUser.messageCount) * 100).toFixed(1)}%)</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-gray-700 shadow-2xl">
+                                            <h3 className="text-2xl font-bold mb-6 flex items-center gap-3 text-blue-300">
+                                                <Search className="text-blue-400" />
+                                                Search Word or Phrase
+                                            </h3>
+                                            <div className="flex gap-4">
+                                                <input
+                                                    type="text"
+                                                    value={searchTerm}
+                                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                                                    placeholder="Enter word or phrase..."
+                                                    className="flex-1 bg-gray-700 text-white px-6 py-3 rounded-xl border border-gray-600 focus:border-blue-500 focus:outline-none"
+                                                />
+                                                <button
+                                                    onClick={handleSearch}
+                                                    className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 px-8 py-3 rounded-xl transition-all font-bold"
+                                                >
+                                                    Search
+                                                </button>
+                                            </div>
+                                            {searchResult && (
+                                                <div className="mt-4 bg-gradient-to-r from-green-900/30 to-emerald-900/30 rounded-xl p-6 border border-green-500/20">
+                                                    <p className="text-2xl font-bold text-green-300">
+                                                        "{searchResult.term}" appears {searchResult.count} time{searchResult.count !== 1 ? 's' : ''}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {currentUser.sentences.length > 0 && (
+                                            <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-gray-700 shadow-2xl">
+                                                <h3 className="text-2xl font-bold mb-6 text-purple-300">Most Repeated Sentences</h3>
+                                                <div className="space-y-3">
+                                                    {currentUser.sentences.map(([sentence, count], idx) => (
+                                                        <div key={idx} className="flex items-start gap-4 bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-4 border border-purple-500/20">
+                                                            <div className="text-2xl font-bold text-purple-400 min-w-[2rem]">
+                                                                {idx + 1}
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <div className="text-lg italic text-gray-200">"{sentence}"</div>
+                                                            </div>
+                                                            <div className="text-xl font-bold text-purple-300 bg-purple-500/20 px-3 py-1 rounded-full">
+                                                                {count}×
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-gray-700 shadow-2xl">
+                                            <h3 className="text-2xl font-bold mb-6 text-blue-300">Most Common Phrases</h3>
+                                            {currentUser.phrases.length > 0 ? (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    {currentUser.phrases.map(([phrase, count], idx) => (
+                                                        <div key={idx} className="flex items-center gap-3 bg-gradient-to-r from-blue-900/30 to-cyan-900/30 rounded-xl p-4 border border-blue-500/20">
+                                                            <div className="text-xl font-bold text-blue-400 min-w-[2rem]">
+                                                                {idx + 1}
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <div className="font-semibold text-gray-200">"{phrase}"</div>
+                                                            </div>
+                                                            <div className="text-lg font-bold text-blue-300 bg-blue-500/20 px-3 py-1 rounded-full">
+                                                                {count}×
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-gray-400">No repeated phrases found</p>
+                                            )}
+                                        </div>
+
+                                        <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700 shadow-2xl">
+                                            <div className="flex justify-between items-center mb-8">
+                                                <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                                                    Word Cloud - {currentUser.name}
+                                                </h2>
+                                            </div>
+                                            
+                                            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-12 min-h-[600px] relative overflow-hidden border border-gray-700">
+                                                {currentUser.words.length > 0 ? (
+                                                    <div className="relative w-full h-full min-h-[600px]">
+                                                        {generateWordCloud(currentUser.words).map((item, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                style={{
+                                                                    position: 'absolute',
+                                                                    left: item.left,
+                                                                    top: item.top,
+                                                                    transform: 'translate(-50%, -50%)',
+                                                                    fontSize: `${item.fontSize}px`,
+                                                                    color: item.color,
+                                                                    opacity: item.opacity,
+                                                                    fontWeight: 'bold',
+                                                                    transition: 'all 0.3s ease',
+                                                                    textShadow: '0 2px 10px rgba(0,0,0,0.7)',
+                                                                    whiteSpace: 'nowrap'
+                                                                }}
+                                                                className="hover:scale-125 cursor-default hover:opacity-100"
+                                                                title={`${item.word}: ${item.freq} times`}
+                                                            >
+                                                                {item.word}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-gray-400 text-center flex items-center justify-center h-full">
+                                                        <div>
+                                                            <p className="text-xl">No valid words found</p>
+                                                            <p className="text-sm mt-2">Only media or short messages</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="mt-6 text-center text-gray-400">
+                                                {currentUser.words.length > 0 && (
+                                                    <>Top {currentUser.words.length} words from {currentUser.totalWords.toLocaleString()} total</>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </>
+                        )}
+
+                        {userData.length === 0 && !processing && (
+                            <div className="text-center text-gray-300 py-20">
+                                <MessageSquare size={64} className="mx-auto mb-6 text-blue-400 opacity-50" />
+                                <p className="text-2xl mb-3">Upload your Telegram chat to begin</p>
+                                <p className="text-gray-400">Desktop: Chat menu → Export chat history → JSON format</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<TelegramWordCloud />, document.getElementById('root'));
+    </script>
+</body>
+</html>
