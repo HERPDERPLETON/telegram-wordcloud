@@ -245,17 +245,26 @@
 
             const processFile = async (event) => {
                 const file = event.target.files[0];
-                if (!file) return;
+                console.log('File selected:', file);
+                if (!file) {
+                    console.log('No file selected');
+                    return;
+                }
 
                 setProcessing(true);
+                console.log('Starting to process file...');
                 
                 try {
                     const text = await file.text();
+                    console.log('File loaded, size:', text.length, 'characters');
                     const data = JSON.parse(text);
+                    console.log('JSON parsed successfully');
                     
                     if (!data.messages || !Array.isArray(data.messages)) {
                         throw new Error('Invalid Telegram export format');
                     }
+                    
+                    console.log('Found', data.messages.length, 'messages');
                     
                     const userMap = new Map();
                     
