@@ -141,8 +141,11 @@
 
             const detectHyperbole = (userObj) => {
                 const wordCounts = userObj.wordCounts;
-                
+
                 const extremeWords = {
+                    'garbage': wordCounts.get('garbage') || 0,
+                    'amazing': wordCounts.get('amazing') || 0,
+                    'incredible': wordCounts.get('incredible') || 0,
                     'literally': wordCounts.get('literally') || 0,
                     'absolutely': wordCounts.get('absolutely') || 0,
                     'completely': wordCounts.get('completely') || 0,
@@ -165,26 +168,56 @@
                     'worst': wordCounts.get('worst') || 0,
                     'best': wordCounts.get('best') || 0
                 };
-                
+
+                // Debug logging
+                console.log('Hyperbole word counts:', extremeWords);
+
                 let allCapsCount = 0;
                 userObj.messages.forEach(msg => {
                     if (msg.length > 3 && msg === msg.toUpperCase() && /[A-Z]/.test(msg)) {
                         allCapsCount++;
                     }
                 });
-                
+
                 let excessivePunctuation = 0;
                 userObj.messages.forEach(msg => {
                     if (/[!?]{2,}/.test(msg)) {
                         excessivePunctuation++;
                     }
                 });
-                
-                const topHyperbolic = Object.entries(extremeWords)
-                    .filter(([, count]) => count > 0)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 10);
-                
+
+                // Priority words that should always appear at the top if they have counts
+                const priorityWords = ['garbage', 'amazing', 'incredible'];
+
+                // Separate priority words from other words
+                const priorityEntries = [];
+                const otherEntries = [];
+
+                Object.entries(extremeWords).forEach(([word, count]) => {
+                    if (count > 0) {
+                        if (priorityWords.includes(word)) {
+                            priorityEntries.push([word, count]);
+                        } else {
+                            otherEntries.push([word, count]);
+                        }
+                    }
+                });
+
+                // Sort priority words by count (garbage first if equal counts)
+                priorityEntries.sort((a, b) => {
+                    if (b[1] !== a[1]) return b[1] - a[1];
+                    return priorityWords.indexOf(a[0]) - priorityWords.indexOf(b[0]);
+                });
+
+                // Sort other words by count
+                otherEntries.sort((a, b) => b[1] - a[1]);
+
+                // Combine: priority words first, then top 7 other words (to make 10 total)
+                const remainingSlots = Math.max(0, 10 - priorityEntries.length);
+                const topHyperbolic = [...priorityEntries, ...otherEntries.slice(0, remainingSlots)];
+
+                console.log('Top hyperbolic words:', topHyperbolic);
+
                 return {
                     words: topHyperbolic,
                     allCapsCount,
@@ -376,38 +409,61 @@
 
             const generateWordCloud = (words) => {
                 if (!words || words.length === 0) return [];
-                
+
                 const positions = [];
                 const maxFreq = words[0][1];
                 const minFreq = words[words.length - 1][1];
-                
-                // Better spacing algorithm - pack words in a looser spiral
-                words.forEach(([word, freq], idx) => {
-                    const normalizedSize = minFreq === maxFreq ? 1 : (freq - minFreq) / (maxFreq - minFreq);
-                    const fontSize = 16 + normalizedSize * 44;
-                    const opacity = 0.6 + normalizedSize * 0.4;
-                    const hue = (idx * 137.5) % 360;
-                    
-                    // Much larger spiral for better spacing
-                    const angle = idx * 0.8;
-                    const radius = Math.sqrt(idx) * 8; // Increased from 4 to 8
-                    const centerX = 50;
-                    const centerY = 50;
-                    
-                    const x = centerX + Math.cos(angle) * radius + (Math.random() - 0.5) * 5;
-                    const y = centerY + Math.sin(angle) * radius + (Math.random() - 0.5) * 5;
-                    
-                    positions.push({
-                        word,
-                        freq,
-                        fontSize,
-                        opacity,
-                        color: `hsl(${hue}, 75%, ${45 + normalizedSize * 15}%)`,
-                        left: `${Math.max(5, Math.min(95, x))}%`,
-                        top: `${Math.max(5, Math.min(95, y))}%`
-                    });
+
+                // Sort words by frequency
+                const sortedWords = [...words].sort((a, b) => b[1] - a[1]);
+
+                // Limit to 60 words
+                const displayWords = sortedWords.slice(0, 60);
+
+                // Flexible grid layout - words arranged in staggered rows
+                const wordsPerRow = [6, 8, 10, 8, 10, 8, 6, 4]; // Varying row lengths for organic look
+                let wordIndex = 0;
+                let currentY = 8;
+
+                wordsPerRow.forEach((numWords, rowIdx) => {
+                    const wordsInThisRow = Math.min(numWords, displayWords.length - wordIndex);
+                    if (wordsInThisRow <= 0) return;
+
+                    for (let i = 0; i < wordsInThisRow; i++) {
+                        if (wordIndex >= displayWords.length) break;
+
+                        const [word, freq] = displayWords[wordIndex];
+                        const normalizedSize = minFreq === maxFreq ? 1 : (freq - minFreq) / (maxFreq - minFreq);
+                        const fontSize = 18 + normalizedSize * 44;
+                        const opacity = 0.8 + normalizedSize * 0.2;
+                        const hue = (wordIndex * 137.5) % 360;
+
+                        // Calculate X position with even spacing and slight randomization
+                        const rowWidth = 84; // Total width to use
+                        const startX = (100 - rowWidth) / 2; // Center the row
+                        const spacing = rowWidth / (wordsInThisRow + 1);
+                        const x = startX + spacing * (i + 1) + (Math.random() - 0.5) * 2;
+
+                        // Y position with spacing based on font size
+                        const y = currentY + (Math.random() - 0.5) * 1;
+
+                        positions.push({
+                            word,
+                            freq,
+                            fontSize,
+                            opacity,
+                            color: `hsl(${hue}, 70%, ${50 + normalizedSize * 10}%)`,
+                            left: `${x}%`,
+                            top: `${y}%`
+                        });
+
+                        wordIndex++;
+                    }
+
+                    // Move to next row with dynamic spacing
+                    currentY += 10 + Math.random() * 2;
                 });
-                
+
                 return positions;
             };
 
@@ -637,20 +693,15 @@
                                                                     left: item.left,
                                                                     top: item.top,
                                                                     transform: 'translate(-50%, -50%)',
-                                                                    padding: '8px 16px',
                                                                     fontSize: `${item.fontSize}px`,
                                                                     color: item.color,
                                                                     opacity: item.opacity,
                                                                     fontWeight: 'bold',
                                                                     transition: 'all 0.3s ease',
-                                                                    textShadow: '0 2px 10px rgba(0,0,0,0.7)',
-                                                                    whiteSpace: 'nowrap',
-                                                                    background: `${item.color}15`,
-                                                                    border: `2px solid ${item.color}`,
-                                                                    borderRadius: '50% 40% 45% 55%',
-                                                                    boxShadow: `0 0 20px ${item.color}40`
+                                                                    textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                                                                    whiteSpace: 'nowrap'
                                                                 }}
-                                                                className="hover:scale-125 cursor-default hover:opacity-100"
+                                                                className="hover:scale-110 cursor-default hover:opacity-100"
                                                                 title={`${item.word}: ${item.freq} times`}
                                                             >
                                                                 {item.word}
